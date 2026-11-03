@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TETRIS.WASM — a DOS-flavored Tetris in WebAssembly</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* AGPL-3.0-only — see COPYING */
+  html, body {
+    margin: 0; height: 100%;
+    background: #000; color: #aaa;
+    font-family: "Courier New", monospace;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px;
+  }
+  canvas {
+    image-rendering: pixelated;
+    width: min(90vw, 720px);
+    border: 2px solid #55f;
+    background: #000;
+  }
+  h1 { font-size: 16px; letter-spacing: 4px; color: #ff5; margin: 0; }
+  footer { font-size: 12px; text-align: center; line-height: 1.6; }
+  a { color: #5f5; }
+  kbd { border: 1px solid #555; padding: 0 4px; color: #fff; }
+</style>
+</head>
+<body>
+  <h1>TETRIS.WASM</h1>
+  <canvas id="screen" width="480" height="400"></canvas>
+  <footer>
+    <kbd>&larr;</kbd><kbd>&rarr;</kbd> move &middot; <kbd>&uarr;</kbd>/<kbd>Z</kbd> rotate
+    &middot; <kbd>&darr;</kbd> soft &middot; <kbd>space</kbd> hard &middot;
+    <kbd>C</kbd> hold &middot; <kbd>P</kbd> pause &middot; <kbd>R</kbd> restart &middot; <kbd>M</kbd> music<br>
+    Rules: Tetris Guideline (SRS, 7-bag) &middot; look: 1990 MS-DOS &middot; engine: freestanding C
+    &rarr; WebAssembly<br>
+    Source: <a href="https://github.com/moon440/tetris.wasm">github.com/moon440/tetris.wasm</a>
+    &middot; AGPL-3.0-only &middot; Tetris is a trademark of the Tetris Company; this is a fan homage.
+  </footer>
+  <script src="glue.js"></script>
+</body>
+</html>
