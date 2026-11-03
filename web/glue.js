@@ -77,14 +77,19 @@ function buildGrids() {
   for (let r = 0; r < 4; r++)
     for (let c = 0; c < 4; c++)
       grids.push([424 + c * 11, 36 + r * 11, 11]);
+  return grids;
+}
+function buildTitleGrids() {
+  const grids = [];
   for (let i = 0; i < 15; i++) grids.push([12 + i * 31, FBH - 36, 28]);
   return grids;
 }
 
 const GRIDS = buildGrids();
+const GRIDS_TITLE = buildTitleGrids();
 
 let bgWords = null;
-function polish(d, u32) {
+function polish(d, u32, state) {
   if (!bgWords) {
     bgWords = BG.map(([, a, b]) => {
       const w = new Uint32Array(FBH);
@@ -112,7 +117,7 @@ function polish(d, u32) {
       else if (flat === k2) u32[base + i] = a2;
     }
   }
-  for (const [x, y, s] of GRIDS) {
+  for (const [x, y, s] of (state === 0 ? GRIDS_TITLE : GRIDS)) {
     const k = cellKey(u32, x + (s >> 1), y + (s >> 1));
     const g = GRAD.get(k);
     if (g) { paintCell(d, x, y, s, g); continue; }
@@ -204,7 +209,6 @@ function stopSong() { clearInterval(songTimer); songTimer = null; }
   });
 
   let last = performance.now();
-  const u32 = new Uint32Array(img.data.buffer);
   const prev = new Uint32Array(FBW * FBH);
   prev.fill(0xffffffff);
   let firstDraw = true;
@@ -219,9 +223,9 @@ function stopSong() { clearInterval(songTimer); songTimer = null; }
     img.data.set(fb);
     const cur = new Uint32Array(img.data.buffer);
     if (firstDraw || !sameFrame(cur, prev)) {
-      polish(img.data, cur);
+      prev.set(cur);              /* keep raw pixels; polish mutates cur in place */
+      polish(img.data, cur, ex.state());
       ctx.putImageData(img, 0, 0);
-      prev.set(cur);
       firstDraw = false;
     }
     requestAnimationFrame(frame);
