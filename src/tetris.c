@@ -221,7 +221,7 @@ static const s8 K_I_CCW[4][5][2] = {
     {{0,0},{-1,0},{2,0},{-1,-2},{2,1}},
     {{0,0},{2,0},{-1,0},{2,-1},{-1,2}},
     {{0,0},{1,0},{-2,0},{1,2},{-2,-1}},
-    {{0,0},{-2,0},{1,0},{-2,-1},{1,2}},
+    {{0,0},{-2,0},{1,0},{-2,1},{1,-2}},
 };
 
 /* ----------------------------------------------------------------- state */
@@ -263,15 +263,18 @@ static int fits(int p, int rot, int x, int y) {
     int i;
     for (i = 0; i < 4; i++) {
         int cx = x + c[i * 2], cy = y + c[i * 2 + 1];
-        if (cx < 0 || cx >= COLS || cy >= ROWS + BUFH) return 0;
-        if (cy >= 0 && well[cy][cx]) return 0;
+        if (cx < 0 || cx >= COLS || cy < 0 || cy >= ROWS + BUFH) return 0;
+        if (well[cy][cx]) return 0;
     }
     return 1;
 }
 
+/* guideline spawn: all pieces at column 3, except O at column 4 */
+static int spawn_x(int p) { return p == 1 ? 4 : 3; }
+
 static int spawn(void) {
     cur = next_piece();
-    currot = 0; curx = 3; curly = 0; holdused = 0;
+    currot = 0; curx = spawn_x(cur); curly = 0; holdused = 0;
     lock_acc = 0; lock_resets = 0; g_acc = 0;
     if (!fits(cur, currot, curx, curly)) { state = ST_OVER; events |= EV_OVER; return 0; }
     return 1;
@@ -436,7 +439,7 @@ static void run_key(int code, int down) {
             int t = holdp;
             holdp = cur;
             holdused = 1;
-            if (t >= 0) { cur = t; currot = 0; curx = 3; curly = 0; lock_acc = 0;
+            if (t >= 0) { cur = t; currot = 0; curx = spawn_x(t); curly = 0; lock_acc = 0;
                           if (!fits(cur, currot, curx, curly)) { state = ST_OVER; events |= EV_OVER; } }
             else spawn();
             events |= EV_HOLD;
@@ -578,6 +581,32 @@ int main(void) {
         }
         printf("row tile: lines %u -> %u\n", lb, lines);
         if (lines < lb + 3) { printf("FAIL: row tiling did not clear\n"); return 1; }
+    }
+    /* guideline spawn columns: O at column 4, all others at column 3 */
+    {
+        int n, bad = 0, t;
+        exp_init(12345);
+        run_key(K_ENTER, 1);
+        for (n = 0; n < 60; n++) {
+            if (cur == 1) { if (curx != 4) bad = 1; }
+            else if (curx != 3) bad = 1;
+            tap(K_HARD);
+            for (t = 0; t < 20; t++) run_tick(16);
+            if (state != ST_PLAY) { exp_init(12345); run_key(K_ENTER, 1); }
+        }
+        printf("spawn columns: %s\n", bad ? "BAD" : "OK");
+        if (bad) { printf("FAIL: O must spawn at col 4, others at col 3\n"); return 1; }
+    }
+    /* wall containment: pieces cannot leave the field or jitter at the wall */
+    {
+        int t;
+        exp_init(12345);
+        run_key(K_ENTER, 1);
+        for (t = 0; t < 30; t++) tap(K_L);
+        if (curx < 0) { printf("FAIL: piece left wall (x=%d)\n", curx); return 1; }
+        for (t = 0; t < 30; t++) tap(K_R);
+        for (t = 0; t < 20; t++) tap(K_R);       /* already flush-right */
+        printf("wall containment: OK\n");
     }
     /* random-ish play: must be deterministic, no assertion on lines */
     exp_init(12345);

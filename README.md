@@ -2,7 +2,8 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL--3.0--only-blue.svg)](COPYING)
 [![WebAssembly](https://img.shields.io/badge/compiled%20to-WebAssembly-8CC84B.svg)](https://webassembly.org/)
-[![Build](https://img.shields.io/badge/build-zig%20cc-informational)](build.ps1)
+[![build](https://github.com/moon440/tetris.wasm/actions/workflows/build.yml/badge.svg)](https://github.com/moon440/tetris.wasm/actions/workflows/build.yml)
+[![play](https://img.shields.io/badge/%E2%96%B6_play-live%20demo-brightgreen)](https://moon440.github.io/tetris.wasm/)
 
 SPDX-License-Identifier: **AGPL-3.0-only**
 
@@ -27,17 +28,43 @@ events = identical game, so score runs are replayable and verifiable.
 > This is an independent fan project. TETRIS is a trademark of the Tetris
 > Company. No game data or art from commercial releases is used or distributed.
 
+## Tetris Guideline compliance
+
+The rules follow the documented Tetris Guideline / SRS. Verified by the CI
+regression suite (row tiling, spawn columns, wall containment, determinism).
+
+| Feature | Status |
+|---|---|
+| 10×20 playfield, 4-row spawn buffer | ✓ |
+| 7-bag randomizer (Fisher-Yates, seeded) | ✓ |
+| SRS tetromino shapes | ✓ |
+| SRS wall kicks (all JLSTZ + I transitions) | ✓ |
+| Guideline spawn columns (O at 4–5, rest left-of-center) | ✓ |
+| Hold (one swap per piece) | ✓ |
+| Next-3 preview | ✓ |
+| Ghost piece | ✓ |
+| Lock delay 500 ms, 15 move-resets | ✓ |
+| DAS 150 ms / ARR 40 ms auto-repeat | ✓ |
+| Guideline gravity table (levels 1–15+) | ✓ |
+| Guideline line scores (100/300/500/800 × level) | ✓ |
+| Soft drop +1/cell, hard drop +2/cell | ✓ |
+| Block-out game over + lock-out ceiling | ✓ |
+| Combos, back-to-back, T-spin bonus | – not yet (flag-gated WIP, see CONTRIBUTING) |
+| Full 20-level gravity curve | ✓ core, high levels clamp at 20G |
+
 ## Play
 
-Any static server:
+**▶ Live demo (no install):** https://moon440.github.io/tetris.wasm/
+
+Play locally from any static server:
 
 ```sh
 cd web && python -m http.server 8123     # -> http://localhost:8123/
 ```
 
-Or enable GitHub Pages (`Settings -> Pages -> source: GitHub Actions` or the
-`/web` folder) and open the site — `web/tetris.wasm` is committed, playable
-without building.
+The `web/` folder is committed and self-contained (`index.html`, `glue.js`,
+`tetris.wasm`); GitHub Pages is deployed from it automatically on every push to
+`main` via the CI workflow.
 
 ### Controls
 

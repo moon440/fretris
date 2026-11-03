@@ -1,0 +1,42 @@
+name: build
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Zig
+        run: |
+          ZIG=0.14.1
+          curl -fsSLo zig.tar.xz https://ziglang.org/download/$ZIG/zig-linux-x86_64-$ZIG.tar.xz
+          tar -xf zig.tar.xz
+          echo "$PWD/zig-linux-x86_64-$ZIG" >> "$GITHUB_PATH"
+      - name: Native regression tests
+        run: |
+          zig cc -std=c99 -Wall -Wextra -Werror -O2 -DTEST_MAIN src/tetris.c -o tetris_test
+          ./tetris_test
+      - name: Build WebAssembly
+        run: |
+          zig cc -std=c99 -O2 -Wall -Wextra -Werror -target wasm32-freestanding -nostdlib \
+            -Wl,--no-entry -Wl,--export-dynamic -Wl,--export-memory \
+            -Wl,--initial-memory=2097152 -Wl,--max-memory=2097152 \
+            src/tetris.c -o web/tetris.wasm
+      - name: Upload wasm artifact
+        uses: actions/upload-artifact@v4
+        with: { name: tetris-wasm, path: web/tetris.wasm }
+      - name: Deploy to GitHub Pages
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: actions/upload-pages-artifact@v3
+        with: { path: web }
+  pages:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions: { pages: write, id-token: write }
+    environment: { name: github-pages, url: ${{ steps.out.outputs.url } }
+    steps:
+      - id: out
+        uses: actions/deploy-pages@v4
