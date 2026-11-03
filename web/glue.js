@@ -13,59 +13,59 @@ const FBW = 480, FBH = 400;
 /* field geometry mirrors the module constants */
 const OX = 30, OY = 20, CELL = 18, COLS = 10, VISIBLE = 20;
 
-/* flat palette -> gradient pairs, keyed by "r,g,b" */
-const GRAD = {
-  "85,255,255":  [[180, 255, 255], [ 30, 150, 250]],
-  "255,255,85":  [[255, 245, 160], [255, 150,  20]],
-  "170,85,255":  [[238, 165, 255], [140,  40, 238]],
-  "85,255,85":   [[185, 255, 160], [ 40, 195,  80]],
-  "255,85,85":   [[255, 175, 150], [245,  50,  70]],
-  "85,85,255":   [[165, 175, 255], [ 50,  70, 245]],
-  "212,212,212": [[255, 228, 185], [245, 140,  70]],
-};
-const HALF = {}; /* pc/2 -> same gradient, for ghost tints */
-for (const k in GRAD) HALF[k.split(",").map(v => (v / 2) | 0).join(",")] = k;
-
-function cellKey(d, cx, cy) {
-  const p = (cy * FBW + cx) * 4;
-  return d[p] + "," + d[p + 1] + "," + d[p + 2];
+/* flat palette -> gradient pairs; integer keys 0xBBGGRR */
+const _g = {};
+function gkey(r, g, b) { return (b << 16) | (g << 8) | r; }
+/* source colors -> [topRGB, botRGB] */
+_g[gkey(85, 255, 255)]  = [[180, 255, 255], [ 30, 150, 250]];
+_g[gkey(255, 255, 85)]  = [[255, 245, 160], [255, 150,  20]];
+_g[gkey(170, 85, 255)]  = [[238, 165, 255], [140,  40, 238]];
+_g[gkey(85, 255, 85)]   = [[185, 255, 160], [ 40, 195,  80]];
+_g[gkey(255, 85, 85)]   = [[255, 175, 150], [245,  50,  70]];
+_g[gkey(85, 85, 255)]   = [[165, 175, 255], [ 50,  70, 245]];
+_g[gkey(212, 212, 212)] = [[255, 228, 185], [245, 140,  70]];
+const HALFK = {};
+for (const k in _g) {
+  const r = +k & 255, g = (+k >> 8) & 255, b = (+k >> 16) & 255;
+  HALFK[gkey(r >> 1, g >> 1, b >> 1)] = +k;
 }
+const GRAD = new Map(Object.entries(_g).map(([k, v]) => [+k, v]));
+
+/* background flat colors -> vertical gradient endpoints */
+const BG = [
+  [gkey(0, 0, 85),   [0x28, 0x18, 0x4e], [0x3c, 0x18, 0x66]],
+  [gkey(0, 0, 170),  [0x26, 0x1c, 0x62], [0x4a, 0x30, 0xbc]],
+  [gkey(85, 85, 255),[0xb4, 0x8c, 0xff], [0x4a, 0xdc, 0xff]],
+];
+const BG_LUT = new Map();           /* color -> Uint8ClampedArray(3*FBH) built lazily per pass */
+
+function cellKey(u32, cx, cy) { return u32[cy * FBW + cx] & 0xffffff; }
 
 function paintCell(d, x, y, s, g) {
   const c0 = g[0], c1 = g[1];
   for (let j = 0; j < s; j++) {
+    const t = j / (s - 1);
+    let r = c0[0] + (c1[0] - c0[0]) * t,
+        gg = c0[1] + (c1[1] - c0[1]) * t,
+        b = c0[2] + (c1[2] - c0[2]) * t;
+    const hl = 0.45 - t;
+    if (hl > 0) { r += (255 - r) * hl * 1.1; gg += (255 - gg) * hl * 1.1; b += (255 - b) * hl * 1.1; }
+    else if (t > 0.78) { r *= 0.8; gg *= 0.8; b *= 0.8; }
+    const row = y + j;
+    if (row < 0 || row >= FBH) continue;
     for (let i = 0; i < s; i++) {
       if (i + j < 2 || (s - 1 - i) + (s - 1 - j) < 2) continue;
-      const t = j / (s - 1);
-      let r = c0[0] + (c1[0] - c0[0]) * t,
-          gg = c0[1] + (c1[1] - c0[1]) * t,
-          b = c0[2] + (c1[2] - c0[2]) * t;
-      const hl = 0.45 - t;
-      if (hl > 0) { r += (255 - r) * hl * 1.1; gg += (255 - gg) * hl * 1.1; b += (255 - b) * hl * 1.1; }
-      else if (t > 0.78) { r *= 0.8; gg *= 0.8; b *= 0.8; }
-      if (j === 0 || i === 0) { r += 34; gg += 34; b += 34; }
-      if (j === s - 1 || i === s - 1) { r *= 0.55; gg *= 0.55; b *= 0.55; }
-      const p = ((y + j) * FBW + (x + i)) * 4;
-      d[p] = r; d[p + 1] = gg; d[p + 2] = b;
+      let rr = r, g2 = gg, bb = b;
+      if (j === 0 || i === 0) { rr += 34; g2 += 34; bb += 34; }
+      if (j === s - 1 || i === s - 1) { rr *= 0.55; g2 *= 0.55; bb *= 0.55; }
+      const p = (row * FBW + x + i) * 4;
+      d[p] = rr; d[p + 1] = g2; d[p + 2] = bb;
     }
   }
 }
 
-function polish(d) {
-  /* backgrounds first: exact flat colors -> vertical gradients */
-  for (let y = 0; y < FBH; y++) {
-    const t = y / FBH;
-    let bg = null;
-    for (let x = 0; x < FBW; x++) {
-      const p = (y * FBW + x) * 4;
-      const k = d[p] + "," + d[p + 1] + "," + d[p + 2];
-      if (k === "0,0,85")       bg = [0x28 + 0x14 * (1 - t), 0x18, 0x4e + 0x18 * t];
-      else if (k === "0,0,170") bg = [0x26 + 0x24 * t, 0x1c + 0x14 * t, 0x62 + 0x5a * t];
-      else if (k === "85,85,255") bg = [0xb4 - 0x6a * t, 0x8c + 0x50 * t, 0xff];
-      if (bg) { d[p] = bg[0]; d[p + 1] = bg[1]; d[p + 2] = bg[2]; }
-    }
-  }
-  /* solid cells on known grids */
+/* precomputed grids: [x, y, size] triples for every block cell the module can draw */
+function buildGrids() {
   const grids = [];
   for (let r = 0; r < VISIBLE; r++)
     for (let c = 0; c < COLS; c++)
@@ -78,25 +78,48 @@ function polish(d) {
     for (let c = 0; c < 4; c++)
       grids.push([424 + c * 11, 36 + r * 11, 11]);
   for (let i = 0; i < 15; i++) grids.push([12 + i * 31, FBH - 36, 28]);
+  return grids;
+}
 
-  const ghostSeen = [];
-  for (const [x, y, s] of grids) {
-    const k = cellKey(d, x + (s >> 1), y + (s >> 1));
-    if (GRAD[k]) paintCell(d, x, y, s, GRAD[k]);
-    else if (HALF[k]) ghostSeen.push([x, y, s, HALF[k]]);
+const GRIDS = buildGrids();
+
+function polish(d, u32) {
+  if (!bgLut) {
+    bgLut = new Map();
+    for (const [key, a, b2] of BG) {
+      const arr = new Uint8ClampedArray(3 * FBH);
+      for (let y = 0; y < FBH; y++) {
+        const t = y / FBH;
+        arr[y * 3] = a[0] + (b2[0] - a[0]) * t;
+        arr[y * 3 + 1] = a[1] + (b2[1] - a[1]) * t;
+        arr[y * 3 + 2] = a[2] + (b2[2] - a[2]) * t;
+      }
+      bgLut.set(key, arr);
+    }
   }
-  /* ghost outlines: brighten border pixels, tint interior */
-  for (const [x, y, s, key] of ghostSeen) {
-    const g = GRAD[key], c = g[0];
+  for (let y = 0; y < FBH; y++) {
+    const rowBase = y * FBW;
+    for (let i = 0; i < FBW; i++) {
+      const lut = bgLut.get(u32[rowBase + i] & 0xffffff);
+      if (lut) {
+        const p = (rowBase + i) * 4;
+        d[p] = lut[y * 3]; d[p + 1] = lut[y * 3 + 1]; d[p + 2] = lut[y * 3 + 2];
+      }
+    }
+  }
+  for (const [x, y, s] of GRIDS) {
+    const k = cellKey(u32, x + (s >> 1), y + (s >> 1));
+    const g = GRAD.get(k);
+    if (g) { paintCell(d, x, y, s, g); continue; }
+    const hk = HALFK[k];
+    if (hk === undefined) continue;
+    const c = GRAD.get(hk)[0];
     for (let j = 0; j < s; j++)
       for (let i = 0; i < s; i++) {
         const p = ((y + j) * FBW + (x + i)) * 4;
-        const edge = j === 0 || i === 0 || j === s - 1 || i === s - 1;
-        if (edge) {
+        if (j === 0 || i === 0 || j === s - 1 || i === s - 1) {
           d[p] = Math.min(255, c[0] * 0.8 + 60); d[p + 1] = Math.min(255, c[1] * 0.8 + 60); d[p + 2] = Math.min(255, c[2] * 0.8 + 60);
-        } else {
-          d[p] += c[0] * 0.10; d[p + 1] += c[1] * 0.10; d[p + 2] += c[2] * 0.14;
-        }
+        } else { d[p] += c[0] * 0.10; d[p + 1] += c[1] * 0.10; d[p + 2] += c[2] * 0.14; }
       }
   }
 }
@@ -176,6 +199,10 @@ function stopSong() { clearInterval(songTimer); songTimer = null; }
   });
 
   let last = performance.now();
+  const u32 = new Uint32Array(img.data.buffer);
+  const prev = new Uint32Array(FBW * FBH);
+  prev.fill(0xffffffff);
+  let firstDraw = true;
   function frame(now) {
     const dt = Math.min(now - last, 50);
     last = now;
@@ -183,10 +210,22 @@ function stopSong() { clearInterval(songTimer); songTimer = null; }
     let ev = ex.events();
     for (const bit of [1024, 512, 256, 128, 64, 32, 16, 8, 4, 2, 1])
       if (ev & bit) { SND[bit](); ev &= ~bit; }
-    img.data.set(new Uint8Array(ex.memory.buffer, ex.framebuffer(), FBW * FBH * 4));
-    polish(img.data);
-    ctx.putImageData(img, 0, 0);
+    const fb = new Uint8Array(ex.memory.buffer, ex.framebuffer(), FBW * FBH * 4);
+    img.data.set(fb);
+    const cur = new Uint32Array(img.data.buffer);
+    if (firstDraw || !sameFrame(cur, prev)) {
+      polish(img.data, cur);
+      ctx.putImageData(img, 0, 0);
+      prev.set(cur);
+      firstDraw = false;
+    }
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 })();
+
+function sameFrame(a, b) {
+  for (let i = 0; i < a.length; i += 64) if (a[i] !== b[i]) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
