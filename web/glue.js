@@ -76,9 +76,9 @@ function buildTitleGrids() {
 
 /* background flat colors -> solid tint (minimalist, no gradient) */
 const BG = [
-  [gkey(0, 0, 85),   [22, 22, 46]],
-  [gkey(0, 0, 170),  [24, 40, 72]],
-  [gkey(85, 85, 255),[110, 110, 176]],
+  [gkey(0, 0, 85),   [46, 50, 88]],
+  [gkey(0, 0, 170),  [42, 52, 102]],
+  [gkey(85, 85, 255),[158, 164, 214]],
 ];
 const BG_WORDS = BG.map(([k, rgb]) => [k, 0xff000000 | (rgb[2] << 16) | (rgb[1] << 8) | rgb[0]]);
 
@@ -109,6 +109,9 @@ function polish(d, u32, state) {
       }
   }
 }
+
+/* display mode: polished (default) or raw high-contrast engine colors (H) */
+let showPolish = true;
 
 /* ---- audio: square-wave ---- */
 let ac = null;
@@ -177,6 +180,7 @@ function stopSong() { clearInterval(songTimer); songTimer = null; }
     if (e.repeat) return;                 /* OS key-repeat must not re-trigger drops/DAS */
     if (!ac) { ac = new AudioContext(); if (songOn) startSong(); }
     if (e.code === "KeyM") { songOn = !songOn; songOn ? startSong() : stopSong(); return; }
+    if (e.code === "KeyH") { showPolish = !showPolish; firstDraw = true; return; }
     const m = KEY[e.code];
     if (m) { e.preventDefault(); ex.key(m[1], 1); }
   });
@@ -200,11 +204,20 @@ function stopSong() { clearInterval(songTimer); songTimer = null; }
     btn.addEventListener("pointercancel", release);
     btn.addEventListener("lostpointercapture", release);
   });
+  document.querySelectorAll("[data-hc]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      showPolish = !showPolish;
+      btn.setAttribute("aria-pressed", String(showPolish));
+      firstDraw = true;
+    });
+  });
 
   let last = performance.now();
   const prev = new Uint32Array(FBW * FBH);
   prev.fill(0xffffffff);
   let firstDraw = true;
+  let lastSc = -1, lastLv = -1, lastLn = -1, lastSt = -1;
+  const statusEl = document.getElementById("status");
   function frame(now) {
     const dt = Math.min(now - last, 50);
     last = now;
@@ -217,9 +230,17 @@ function stopSong() { clearInterval(songTimer); songTimer = null; }
     const cur = new Uint32Array(img.data.buffer);
     if (firstDraw || !sameFrame(cur, prev)) {
       prev.set(cur);              /* keep raw pixels; polish mutates cur in place */
-      polish(img.data, cur, ex.state());
+      if (showPolish) polish(img.data, cur, ex.state());
       ctx.putImageData(img, 0, 0);
       firstDraw = false;
+    }
+    const sc = ex.score(), lv = ex.level(), ln = ex.lines(), st = ex.state();
+    if (statusEl && (sc !== lastSc || lv !== lastLv || ln !== lastLn || st !== lastSt)) {
+      lastSc = sc; lastLv = lv; lastLn = ln; lastSt = st;
+      statusEl.textContent = st === 1 ? `Playing. Score ${sc}, level ${lv}, ${ln} lines cleared.`
+        : st === 2 ? "Paused."
+        : st === 3 ? `Game over. Score ${sc}, ${ln} lines. Press Enter to restart.`
+        : "Fretris. Press Enter to start.";
     }
     requestAnimationFrame(frame);
   }

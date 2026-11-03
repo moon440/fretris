@@ -6,7 +6,7 @@
 <title>FRETRIS — Free/Libre Tetris in C + WebAssembly (AGPL-3.0)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  :root { --edge: #2a2740; --ink: #d7d7ea; }
+  :root { --edge: #3b3f63; --ink: #d7d7ea; --field: #2e3258; }
   html, body {
     margin: 0; min-height: 100%;
     font-family: system-ui, "Segoe UI", sans-serif;
@@ -25,52 +25,70 @@
     width: min(94vw, 460px);
     border: 1px solid var(--edge);
     border-radius: 6px;
-    background: #000;
+    background: var(--field);
   }
   .pad {
     display: grid; gap: 8px;
-    grid-template-columns: repeat(4, 64px);
+    grid-template-columns: repeat(4, minmax(56px, 72px));
     touch-action: none;
   }
   .pad button {
-    height: 52px; font-size: 18px; line-height: 1;
-    color: var(--ink); background: #16141f;
+    height: 52px; font-size: 17px; line-height: 1;
+    color: var(--ink); background: #1b1a2a;
     border: 1px solid var(--edge); border-radius: 8px;
     cursor: pointer; touch-action: none;
   }
-  .pad button:active { background: #26233a; }
+  .pad button:active { background: #2b2942; }
+  .pad button[aria-pressed="true"] { outline: 2px solid #9db4ff; }
   .pad .w2 { grid-column: span 2; }
-  footer {
-    font-size: 12px; text-align: center; line-height: 1.9; max-width: 480px;
-    color: #8b8aa3;
+  :where(button, a):focus-visible {
+    outline: 3px solid #9db4ff; outline-offset: 2px;
   }
-  a { color: #7aa2ff; text-decoration: none; }
-  a:hover { text-decoration: underline; }
+  footer {
+    font-size: 12.5px; text-align: center; line-height: 2; max-width: 480px;
+    color: #a6a5c2;
+  }
+  a { color: #9db4ff; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  @media (prefers-contrast: more) {
+    :root { --ink: #ffffff; --edge: #8f96c8; }
+    html, body { background: #000; }
+    footer { color: #ffffff; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pad button { transition: none; }
+  }
   @media (hover: hover) and (pointer: fine) { .pad { display: none; } }
 </style>
 </head>
 <body>
   <h1>Fretris</h1>
-  <canvas id="screen" width="480" height="400"></canvas>
-  <div class="pad" aria-label="controls">
-    <button data-key="0">&#9664;</button>
-    <button data-key="1">&#9654;</button>
-    <button data-key="2">&#9660;</button>
-    <button data-key="3" data-tap>&#8635;</button>
-    <button data-key="5" data-tap>HOLD</button>
-    <button data-key="6" data-tap class="w2">DROP</button>
-    <button data-key="8" data-tap class="w2">START</button>
-    <button data-key="7" data-tap>II</button>
-    <button data-key="9" data-tap>RST</button>
+  <canvas id="screen" width="480" height="400" role="img"
+          aria-label="Tetris playfield"></canvas>
+  <div id="status" class="sr-only" aria-live="polite">Fretris. Press Enter to start.</div>
+  <div class="pad" aria-label="game controls">
+    <button data-key="0" aria-label="move left">&#9664;</button>
+    <button data-key="1" aria-label="move right">&#9654;</button>
+    <button data-key="2" aria-label="soft drop">&#9660;</button>
+    <button data-key="3" aria-label="rotate">&#8635;</button>
+    <button data-key="5" data-tap aria-label="hold piece">HOLD</button>
+    <button data-key="6" data-tap class="w2" aria-label="hard drop">DROP</button>
+    <button data-key="8" data-tap class="w2" aria-label="start game">START</button>
+    <button data-key="7" data-tap aria-label="pause">II</button>
+    <button data-key="9" data-tap aria-label="restart">RST</button>
+    <button data-hc aria-pressed="true" aria-label="toggle high-contrast colors">A6</button>
   </div>
   <footer>
     Keys: &larr; &rarr; move &middot; &uarr;/Z rotate &middot; &darr; soft &middot; space hard &middot;
-    C hold &middot; P pause &middot; R restart &middot; M music<br>
+    C hold &middot; P pause &middot; R restart &middot; M music &middot; H high contrast<br>
     Rules: Tetris Guideline (SRS, 7-bag) &middot; engine: freestanding C
     &rarr; WebAssembly<br>
     <a href="https://github.com/moon440/fretris">github.com/moon440/fretris</a>
     &middot; AGPL-3.0-only &middot; independent fan project; Tetris is a trademark of the Tetris Company.
 </footer>
-  <script src="glue.js?v=4"></script>
+  <script src="glue.js?v=5"></script>
 </body>
 </html>
