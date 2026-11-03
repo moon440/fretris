@@ -1,36 +1,31 @@
-# TETRIS.WASM
+# FRETRIS
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL--3.0--only-blue.svg)](COPYING)
 [![WebAssembly](https://img.shields.io/badge/compiled%20to-WebAssembly-8CC84B.svg)](https://webassembly.org/)
-[![build](https://github.com/moon440/tetris.wasm/actions/workflows/build.yml/badge.svg)](https://github.com/moon440/tetris.wasm/actions/workflows/build.yml)
-[![play](https://img.shields.io/badge/%E2%96%B6_play-live%20demo-brightgreen)](https://moon440.github.io/tetris.wasm/)
+[![build](https://github.com/moon440/fretris/actions/workflows/build.yml/badge.svg)](https://github.com/moon440/fretris/actions/workflows/build.yml)
+[![play](https://img.shields.io/badge/%E2%96%B6_play-live%20demo-brightgreen)](https://moon440.github.io/fretris/)
 
 SPDX-License-Identifier: **AGPL-3.0-only**
 
-A standard, modern Tetris in **freestanding C compiled to WebAssembly**. Retro
-block look: VGA palette, bitmap-font HUD, CGA-blue boot title, PC-speaker
-square-wave audio (including Korobeiniki). No frameworks, no build system
-beyond a compiler, no telemetry — one 35 KB `.wasm`, one 5 KB JS host, any
-browser, forever.
+A standard, modern Tetris in **freestanding C compiled to WebAssembly**. No
+frameworks, no build system beyond a compiler, no telemetry — one 35 KB
+`.wasm`, one JS host, any browser, forever.
 
 **This is copyleft software.** You are free to run, study, share, and modify
 it. Because it is the **Affero** GPL, anyone who offers a modified version to
 users over a network must also make its source available to those users.
 Forks stay free — that is the whole point.
 
-Rules follow the documented **Tetris Guideline**: 10x20 field, 7-bag
-randomizer, SRS rotation with official wall kicks, hold, next-3 preview,
-ghost piece, 500 ms lock delay, guideline gravity and scoring.
+## About the name
 
-Deterministic by design: `init(seed)` seeds the bag. Same seed + same input
-events = identical game, so score runs are replayable and verifiable.
-
-> This is an independent fan project. TETRIS is a trademark of the Tetris
-> Company. No game data or art from commercial releases is used or distributed.
+FRETRIS is a wordplay: **free** + **TETRA…tris**. It is *not* a GNU Project
+package and is unaffiliated with the FSF. It is an independent fan project;
+TETRIS is a trademark of the Tetris Company. No game data, art, or sound
+recordings from commercial releases are used or distributed.
 
 ## Tetris Guideline compliance
 
-The rules follow the documented Tetris Guideline / SRS. Verified by the CI
+The rules follow the documented Tetris Guideline / SRS, verified by the CI
 regression suite (row tiling, spawn columns, wall containment, determinism).
 
 | Feature | Status |
@@ -48,13 +43,12 @@ regression suite (row tiling, spawn columns, wall containment, determinism).
 | Guideline gravity table (levels 1–15+) | ✓ |
 | Guideline line scores (100/300/500/800 × level) | ✓ |
 | Soft drop +1/cell, hard drop +2/cell | ✓ |
-| Block-out game over + lock-out ceiling | ✓ |
-| Combos, back-to-back, T-spin bonus | – not yet (flag-gated WIP, see CONTRIBUTING) |
-| Full 20-level gravity curve | ✓ core, high levels clamp at 20G |
+| Block-out game over | ✓ |
+| Combos, back-to-back, T-spin bonus | – not yet (see CONTRIBUTING) |
 
 ## Play
 
-**▶ Live demo (no install):** https://moon440.github.io/tetris.wasm/
+**▶ Live demo (no install):** https://moon440.github.io/fretris/
 
 Play locally from any static server:
 
@@ -63,8 +57,7 @@ cd web && python -m http.server 8123     # -> http://localhost:8123/
 ```
 
 The `web/` folder is committed and self-contained (`index.html`, `glue.js`,
-`tetris.wasm`); GitHub Pages is deployed from it automatically on every push to
-`main` via the CI workflow.
+`tetris.wasm`); GitHub Pages is deployed from it on every push to `main`.
 
 ### Controls
 
@@ -83,9 +76,9 @@ The `web/` folder is committed and self-contained (`index.html`, `glue.js`,
 
 ## Build
 
-Requires [Zig](https://ziglang.org/download/) (0.11+; ships clang + wasm-ld).
-`build.ps1` runs the native regression tests (row tiling, scoring, seed
-determinism) then compiles with `-Wall -Wextra -Werror`:
+Requires [Zig](https://ziglang.org/download/) 0.14.1 (ships clang + wasm-ld).
+`build.ps1` runs the native regression tests, then compiles with
+`-Wall -Wextra -Werror`:
 
 ```powershell
 .\build.ps1            # or: $env:ZIG="C:\path\to\zig.exe"; .\build.ps1
@@ -102,17 +95,30 @@ zig cc -std=c99 -O2 -Wall -Wextra -Werror -target wasm32-freestanding -nostdlib 
     src/tetris.c -o web/tetris.wasm
 ```
 
+## Reproducible build
+
+`web/tetris.wasm` is intended to be the byte-exact output of the command
+above (Zig 0.14.1) applied to `src/tetris.c`. CI rebuilds it on every push
+and compares against the committed bytes; a mismatch fails the build.
+
+```
+sha256  2f910ba9d4e0864df949c9aed2f6823185d666dab00fb64642b05d6dda788999
+```
+
+The module is `nostdlib` and contains no prebuilt object blobs — the entire
+binary is generated from the one C file, so you can audit what you run.
+
 ## Architecture
 
 - **No libc, no malloc.** The wasm module owns one static RGBA framebuffer
-  (480x400) plus game state; the host blits it each frame. All drawing is a
-  5x7 bitmap font and inset-border blocks.
+  (480×400) plus game state; the host blits it each frame.
 - **Exports:** `init, tick, key, framebuffer, score, level, lines, state,
-  events`. The `events` bitmask drives the host's speaker beeps, keeping
-  rules and sound decoupled.
+  events`. The `events` bitmask keeps rules and sound decoupled.
+- **Deterministic.** `init(seed)` seeds the bag; same seed + same input
+  events = identical game. Input tapes are replayable and verifiable.
 - **Standard by construction:** SRS kick tables and guideline
   gravity/scoring are plain data tables in `src/tetris.c` — swap in NES
-  rotation, no-kill-out, or custom rules for a variant fork.
+  rotation or custom rules for a variant fork.
 
 ## License
 
@@ -120,5 +126,3 @@ Copyright (C) 2026 moon440.
 
 Released under the **GNU Affero General Public License v3.0 only**. The full
 text is in [`COPYING`](COPYING). Every source file carries the SPDX header.
-`web/tetris.wasm` is built from `src/tetris.c`; rebuilding from source keeps
-you inside the license, which is exactly what it wants.

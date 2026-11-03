@@ -21,7 +21,13 @@ jobs:
           zig cc -std=c99 -O2 -Wall -Wextra -Werror -target wasm32-freestanding -nostdlib \
             -Wl,--no-entry -Wl,--export-dynamic -Wl,--export-memory \
             -Wl,--initial-memory=2097152 -Wl,--max-memory=2097152 \
-            src/tetris.c -o web/tetris.wasm
+            src/tetris.c -o rebuilt.wasm
+      - name: Reproducible build check
+        run: |
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          sha256sum web/tetris.wasm rebuilt.wasm >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cmp web/tetris.wasm rebuilt.wasm
       - name: Upload wasm artifact
         uses: actions/upload-artifact@v4
         with:

@@ -1,5 +1,5 @@
 /*
- * tetris.wasm — Tetris in freestanding C, compiled to WebAssembly.
+ * fretris — Free/Libre Tetris in freestanding C, compiled to WebAssembly.
  * Retro block aesthetics inspired by the 1990 text-mode classic:
  * VGA palette, block glyphs, boot title screen, PC-speaker audio.
  * AGPL-3.0-only — copyleft, see COPYING.
@@ -463,7 +463,7 @@ static void draw(void) {
         fb_clear(0, 0, 170); /* CGA blue */
         fb_rect(0, 0, FBW, 48, 0, 0, 0);
         fb_rect(0, FBH - 48, FBW, 48, 0, 0, 0);
-        fb_center("TETRIS", 0, FBW, 86, 8, 255, 255, 85);
+        fb_center("FRETRIS", 0, FBW, 86, 8, 255, 255, 85);
         fb_center("C + WEBASSEMBLY", 0, FBW, 158, 2, 255, 255, 255);
         if ((blink_acc / 400) % 2) fb_center("> PRESS ENTER", 0, FBW, 214, 2, 85, 255, 85);
         fb_center("ARROWS MOVE - UP OR Z ROTATE - SPACE HARD DROP", 0, FBW, 290, 1, 170, 170, 170);
