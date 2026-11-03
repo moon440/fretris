@@ -50,7 +50,7 @@ Or `./build.ps1` on Windows.
 (Zig 0.14.1, x86-64 Linux). CI rebuilds it and compares on every push.
 
 ```
-sha256  434b15d205b4533dac8f16b9abc8518d935c7e98376f4e90ee29aec04c68058a
+sha256  80ca36b64d59d35994e60766a20a79cc9aec1068552d404245dff54cf4140dfa
 ```
 
 ## Layout
