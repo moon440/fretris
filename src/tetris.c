@@ -1,10 +1,7 @@
 /*
- * fretris — Free/Libre Tetris in freestanding C, compiled to WebAssembly.
- * Retro block aesthetics inspired by the 1990 text-mode classic:
- * VGA palette, block glyphs, boot title screen, PC-speaker audio.
- * AGPL-3.0-only — copyleft, see COPYING.
- *
+ * fretris — Tetris in freestanding C, compiled to WebAssembly.
  * Copyright (C) 2026 moon440
+ * SPDX-License-Identifier: AGPL-3.0-only
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -21,10 +18,10 @@
  */
 
 /*
- * Rules follow the documented Tetris Guideline: 10x20 field, 7-bag
- * randomizer, SRS rotation with official wall kicks, hold, next-3 preview,
- * ghost piece, 500 ms lock delay (max 15 move-resets), guideline gravity
- * and scoring. Deterministic: one init(seed) + input tape = replayable run.
+ * Rules follow the Tetris Guideline: 10x20 field, 7-bag randomizer, SRS
+ * rotation with wall kicks, hold, next-3 preview, ghost piece, 700 ms lock
+ * delay (max 15 move-resets), guideline gravity and scoring. Deterministic:
+ * one init(seed) + input tape = replayable run.
  */
 
 typedef unsigned char u8;
@@ -97,7 +94,7 @@ static void fb_rect(int x, int y, int w, int h, u8 r, u8 g, u8 b) {
             fb[p] = r; fb[p + 1] = g; fb[p + 2] = b;
         }
 }
-/* solid "█" cell with an inset border, like a DOS text block */
+/* solid cell with an inset border */
 static void fb_block(int x, int y, int s, u8 r, u8 g, u8 b) {
     fb_rect(x, y, s, s, r, g, b);
     fb_rect(x + 1, y + 1, s - 2, s - 2, r / 2, g / 2, b / 2);
@@ -176,7 +173,7 @@ static void fb_num(u32 n, int x, int y, int sc, u8 r, u8 g, u8 b) {
 }
 
 /* ---------------------------------------------------------------- pieces */
-/* VGA 16-color palette: the DOS-era look */
+/* piece colors */
 static const u8 PCOL[7][3] = {
     {85, 255, 255},   /* I cyan   */
     {255, 255, 85},   /* O yellow */
@@ -471,7 +468,7 @@ static void draw_mini(int p, int x, int y, int s) {
 static void draw(void) {
     int r, c2, i;
     if (state == ST_TITLE) {
-        fb_clear(0, 0, 170); /* CGA blue */
+        fb_clear(0, 0, 170); /* blue */
         fb_rect(0, 0, FBW, 48, 0, 0, 0);
         fb_rect(0, FBH - 48, FBW, 48, 0, 0, 0);
         fb_center("FRETRIS", 0, FBW, 86, 8, 255, 255, 85);

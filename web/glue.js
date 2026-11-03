@@ -13,7 +13,7 @@ const FBW = 480, FBH = 400;
 /* field geometry mirrors the module constants */
 const OX = 30, OY = 20, CELL = 18, COLS = 10, VISIBLE = 20;
 
-/* flat palette -> gradient pairs; integer keys 0xBBGGRR */
+/* palette -> gradient pairs; integer keys 0xBBGGRR */
 const _g = {};
 function gkey(r, g, b) { return (b << 16) | (g << 8) | r; }
 /* source colors -> [topRGB, botRGB] */
@@ -33,8 +33,7 @@ const GRAD = new Map(Object.entries(_g).map(([k, v]) => [+k, v]));
 
 function cellKey(u32, cx, cy) { return u32[cy * FBW + cx] & 0xffffff; }
 
-/* flat retro block: solid fill, one crisp light edge (top-left), one dark edge
-   (bottom-right). No gradient gloss, no bevel wash -> minimalist 90s look. */
+/* one solid fill + light top-left / dark bottom-right edge per cell */
 function paintCell(d, x, y, s, g) {
   const c0 = g[0], c1 = g[1];
   const fr = (c0[0] + c1[0]) >> 1, fg = (c0[1] + c1[1]) >> 1, fb = (c0[2] + c1[2]) >> 1;
@@ -74,7 +73,7 @@ function buildTitleGrids() {
   return grids;
 }
 
-/* background flat colors -> solid tint (minimalist, no gradient) */
+/* background solid colors */
 const BG = [
   [gkey(0, 0, 85),   [46, 50, 88]],
   [gkey(0, 0, 170),  [42, 52, 102]],
