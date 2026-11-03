@@ -83,28 +83,33 @@ function buildGrids() {
 
 const GRIDS = buildGrids();
 
+let bgWords = null;
 function polish(d, u32) {
-  if (!bgLut) {
-    bgLut = new Map();
-    for (const [key, a, b2] of BG) {
-      const arr = new Uint8ClampedArray(3 * FBH);
+  if (!bgWords) {
+    bgWords = BG.map(([, a, b]) => {
+      const w = new Uint32Array(FBH);
       for (let y = 0; y < FBH; y++) {
         const t = y / FBH;
-        arr[y * 3] = a[0] + (b2[0] - a[0]) * t;
-        arr[y * 3 + 1] = a[1] + (b2[1] - a[1]) * t;
-        arr[y * 3 + 2] = a[2] + (b2[2] - a[2]) * t;
+        const r = (a[0] + (b[0] - a[0]) * t) | 0,
+              g = (a[1] + (b[1] - a[1]) * t) | 0,
+              bl = (a[2] + (b[2] - a[2]) * t) | 0;
+        w[y] = 0xff000000 | (bl << 16) | (g << 8) | r;
       }
-      bgLut.set(key, arr);
-    }
+      return w;
+    });
+    bgWords.k = BG.map(([k]) => k);
   }
+  const k0 = bgWords.k[0], k1 = bgWords.k[1], k2 = bgWords.k[2];
+  const w0 = bgWords[0], w1 = bgWords[1], w2 = bgWords[2];
   for (let y = 0; y < FBH; y++) {
-    const rowBase = y * FBW;
+    const base = y * FBW;
+    const a0 = w0[y], a1 = w1[y], a2 = w2[y];
     for (let i = 0; i < FBW; i++) {
-      const lut = bgLut.get(u32[rowBase + i] & 0xffffff);
-      if (lut) {
-        const p = (rowBase + i) * 4;
-        d[p] = lut[y * 3]; d[p + 1] = lut[y * 3 + 1]; d[p + 2] = lut[y * 3 + 2];
-      }
+      const v = u32[base + i];
+      const flat = v & 0xffffff;
+      if (flat === k0) u32[base + i] = a0;
+      else if (flat === k1) u32[base + i] = a1;
+      else if (flat === k2) u32[base + i] = a2;
     }
   }
   for (const [x, y, s] of GRIDS) {
