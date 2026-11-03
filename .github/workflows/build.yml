@@ -28,11 +28,14 @@ jobs:
           sha256sum web/tetris.wasm rebuilt.wasm >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           cmp web/tetris.wasm rebuilt.wasm
-      - name: Upload wasm artifact
+      - name: Upload wasm artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: tetris-wasm
-          path: web/tetris.wasm
+          path: |
+            web/tetris.wasm
+            rebuilt.wasm
       - name: Deploy to GitHub Pages
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: actions/upload-pages-artifact@v3
