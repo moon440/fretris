@@ -1,5 +1,13 @@
 ﻿# Changelog
 
+## Unreleased
+
+- Soft drop: constant descent rate while held, slightly gentler
+- Lock delay: 700 ms measured in real time, identical whether or not the
+  piece was soft-dropped (previously could lock up to 2× faster after a
+  held-down drop)
+- Panel: last four score gains listed under SCORE
+
 ## v1.0.0 — 2026-11-03
 
 Initial release.

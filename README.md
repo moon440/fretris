@@ -103,7 +103,7 @@ push and byte-compares against the committed binary; a mismatch fails the
 build. The digest is the last line of each run's job summary.
 
 ```
-sha256  aa0c989df156b9a016d65a056aa8b1952d29f4941bf5e1ccfc7768fcdeadb9d0
+sha256  434b15d205b4533dac8f16b9abc8518d935c7e98376f4e90ee29aec04c68058a
 ```
 
 The module is `nostdlib` and contains no prebuilt object blobs — the entire
