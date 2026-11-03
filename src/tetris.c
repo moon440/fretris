@@ -111,8 +111,8 @@ static void fb_ghost(int x, int y, int s, u8 r, u8 g, u8 b) {
 }
 
 /* ------------------------------------------------------- 5x7 bitmap font
- * order: ' ', '0'-'9', 'A'-'Z', '-', '.', ':', '>'   (41 glyphs) */
-static const u8 FONT[41][7] = {
+ * order: ' ', '0'-'9', 'A'-'Z', '-', '.', ':', '>', '+'   (42 glyphs) */
+static const u8 FONT[42][7] = {
     {0,0,0,0,0,0,0},
     {0x0E,0x11,0x13,0x15,0x19,0x11,0x0E},{0x04,0x0C,0x04,0x04,0x04,0x04,0x0E},
     {0x0E,0x11,0x01,0x02,0x04,0x08,0x1F},{0x1F,0x02,0x04,0x02,0x01,0x11,0x0E},
@@ -134,6 +134,7 @@ static const u8 FONT[41][7] = {
     {0x11,0x11,0x0A,0x04,0x04,0x04,0x04},{0x1F,0x01,0x02,0x04,0x08,0x10,0x1F},
     {0,0,0,0x1F,0,0,0},{0,0,0,0,0,0x0C,0x0C},
     {0,0x0C,0x0C,0,0x0C,0x0C,0},{0x08,0x04,0x02,0x01,0x02,0x04,0x08},
+    {0,0,0x04,0x1F,0x04,0,0},
 };
 static int glyph_idx(char c) {
     if (c == ' ') return 0;
@@ -144,6 +145,7 @@ static int glyph_idx(char c) {
     if (c == '.') return 38;
     if (c == ':') return 39;
     if (c == '>') return 40;
+    if (c == '+') return 41;
     return 0;
 }
 static void fb_text(const char *s, int x, int y, int sc, u8 r, u8 g, u8 b) {
@@ -227,6 +229,8 @@ static const s8 K_I_CCW[4][5][2] = {
 /* ----------------------------------------------------------------- state */
 static u8 well[ROWS + BUFH][COLS]; /* 0 empty, else piece+1 */
 static u32 rng, seed0;
+static u32 gains[4];               /* last four score gains, newest first */
+static u32 scoreAtSpawn;
 static int cur, currot, curx, curly, holdp, holdused;
 static int queue[16], qhead;
 static u32 score, lines, level;
@@ -236,7 +240,7 @@ static u32 events;
 static int key_l, key_r, key_d, das_ms, arr_ms;
 #define DAS 150
 #define ARR 40
-#define LOCK_DELAY 500
+#define LOCK_DELAY 700
 
 static void bag_fill(int *q) {
     int i;
@@ -276,6 +280,7 @@ static int spawn(void) {
     cur = next_piece();
     currot = 0; curx = spawn_x(cur); curly = 0; holdused = 0;
     lock_acc = 0; lock_resets = 0; g_acc = 0;
+    scoreAtSpawn = score;
     if (!fits(cur, currot, curx, curly)) { state = ST_OVER; events |= EV_OVER; return 0; }
     return 1;
 }
@@ -351,6 +356,8 @@ static void lock_current(void) {
         nl = lines / 10 + 1;
         if (nl != level) { level = nl; events |= EV_LEVEL; }
     }
+    { u32 d = score - scoreAtSpawn;
+      if (d) { gains[3] = gains[2]; gains[2] = gains[1]; gains[1] = gains[0]; gains[0] = d; } }
     spawn();
 }
 
@@ -370,6 +377,7 @@ static void reset_game(void) {
     bag_fill(queue + 7);
     qhead = 0;
     holdp = -1; score = 0; lines = 0; level = 1;
+    gains[0] = gains[1] = gains[2] = gains[3] = 0;
     key_l = key_r = key_d = das_ms = arr_ms = 0;
     clear_timer = 0;
     state = ST_PLAY;
@@ -394,22 +402,25 @@ static void run_tick(u32 dt) {
         }
     } else { das_ms = 0; arr_ms = 0; }
 
-    /* soft drop + gravity */
+    /* gravity / soft drop: constant rate while held */
     g_acc += dt;
     {
         u32 base = gravity_ms();
-        u32 g = key_d ? (base / 20 < 15 ? (base / 20 ? base / 20 : 1) : 15) : base;
+        u32 g = base;
+        if (key_d) { g = base / 15; if (g < 20) g = 20; }
         while (g_acc >= g && state == ST_PLAY && !clear_timer) {
             g_acc -= g;
             if (fits(cur, currot, curx, curly + 1)) {
                 curly++;
                 if (key_d) { score++; events |= EV_SOFT; }
                 lock_acc = 0;
-            } else {
-                lock_acc += g;
-                if (lock_acc >= LOCK_DELAY) { lock_current(); break; }
-            }
+            } else break;
         }
+    }
+    /* lock delay runs in real time: same window whether or not soft-dropping */
+    if (state == ST_PLAY && !clear_timer && !fits(cur, currot, curx, curly + 1)) {
+        lock_acc += dt;
+        if (lock_acc >= LOCK_DELAY) lock_current();
     }
 }
 
@@ -498,10 +509,15 @@ static void draw(void) {
     }
     fb_text("SCORE", 240, 20, 1, 170, 170, 170);
     fb_num(score, 240, 30, 2, 255, 255, 85);
-    fb_text("LEVEL", 240, 66, 1, 170, 170, 170);
-    fb_num(level, 240, 76, 2, 85, 255, 85);
-    fb_text("LINES", 240, 112, 1, 170, 170, 170);
-    fb_num(lines, 240, 122, 2, 85, 255, 255);
+    for (i = 0; i < 4; i++) {
+        if (!gains[i]) continue;
+        fb_text("+", 240, 50 + i * 9, 1, 140, 142, 160);
+        fb_num(gains[i], 247, 50 + i * 9, 1, 140, 142, 160);
+    }
+    fb_text("LEVEL", 240, 92, 1, 170, 170, 170);
+    fb_num(level, 240, 102, 2, 85, 255, 85);
+    fb_text("LINES", 240, 134, 1, 170, 170, 170);
+    fb_num(lines, 240, 144, 2, 85, 255, 255);
     fb_text("NEXT", 330, 20, 1, 170, 170, 170);
     for (i = 0; i < 3; i++) {
         int p = queue[(qhead + i) % 16];
