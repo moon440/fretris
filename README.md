@@ -1,4 +1,4 @@
-# FRETRIS
+﻿# FRETRIS
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL--3.0--only-blue.svg)](COPYING)
 [![WebAssembly](https://img.shields.io/badge/compiled%20to-WebAssembly-8CC84B.svg)](https://webassembly.org/)
@@ -8,7 +8,7 @@
 SPDX-License-Identifier: **AGPL-3.0-only**
 
 A standard, modern Tetris in **freestanding C compiled to WebAssembly**. No
-frameworks, no build system beyond a compiler, no telemetry — one 35 KB
+frameworks, no build system beyond a compiler, no telemetry — one 40 KB
 `.wasm`, one JS host, any browser, forever.
 
 **This is copyleft software.** You are free to run, study, share, and modify
@@ -97,12 +97,13 @@ zig cc -std=c99 -O2 -Wall -Wextra -Werror -target wasm32-freestanding -nostdlib 
 
 ## Reproducible build
 
-`web/tetris.wasm` is intended to be the byte-exact output of the command
-above (Zig 0.14.1) applied to `src/tetris.c`. CI rebuilds it on every push
-and compares against the committed bytes; a mismatch fails the build.
+`web/tetris.wasm` is the byte-exact output of the documented `zig cc` command
+(Zig 0.14.1, x86-64 Linux) applied to `src/tetris.c`. CI rebuilds it on every
+push and byte-compares against the committed binary; a mismatch fails the
+build. The digest is the last line of each run's job summary.
 
 ```
-sha256  2f910ba9d4e0864df949c9aed2f6823185d666dab00fb64642b05d6dda788999
+sha256  aa0c989df156b9a016d65a056aa8b1952d29f4941bf5e1ccfc7768fcdeadb9d0
 ```
 
 The module is `nostdlib` and contains no prebuilt object blobs — the entire
