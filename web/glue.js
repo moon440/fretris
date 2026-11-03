@@ -31,35 +31,24 @@ for (const k in _g) {
 }
 const GRAD = new Map(Object.entries(_g).map(([k, v]) => [+k, v]));
 
-/* background flat colors -> vertical gradient endpoints */
-const BG = [
-  [gkey(0, 0, 85),   [0x28, 0x18, 0x4e], [0x3c, 0x18, 0x66]],
-  [gkey(0, 0, 170),  [0x26, 0x1c, 0x62], [0x4a, 0x30, 0xbc]],
-  [gkey(85, 85, 255),[0xb4, 0x8c, 0xff], [0x4a, 0xdc, 0xff]],
-];
-const BG_LUT = new Map();           /* color -> Uint8ClampedArray(3*FBH) built lazily per pass */
-
 function cellKey(u32, cx, cy) { return u32[cy * FBW + cx] & 0xffffff; }
 
+/* flat retro block: solid fill, one crisp light edge (top-left), one dark edge
+   (bottom-right). No gradient gloss, no bevel wash -> minimalist 90s look. */
 function paintCell(d, x, y, s, g) {
   const c0 = g[0], c1 = g[1];
+  const fr = (c0[0] + c1[0]) >> 1, fg = (c0[1] + c1[1]) >> 1, fb = (c0[2] + c1[2]) >> 1;
   for (let j = 0; j < s; j++) {
-    const t = j / (s - 1);
-    let r = c0[0] + (c1[0] - c0[0]) * t,
-        gg = c0[1] + (c1[1] - c0[1]) * t,
-        b = c0[2] + (c1[2] - c0[2]) * t;
-    const hl = 0.45 - t;
-    if (hl > 0) { r += (255 - r) * hl * 1.1; gg += (255 - gg) * hl * 1.1; b += (255 - b) * hl * 1.1; }
-    else if (t > 0.78) { r *= 0.8; gg *= 0.8; b *= 0.8; }
     const row = y + j;
     if (row < 0 || row >= FBH) continue;
     for (let i = 0; i < s; i++) {
-      if (i + j < 2 || (s - 1 - i) + (s - 1 - j) < 2) continue;
-      let rr = r, g2 = gg, bb = b;
-      if (j === 0 || i === 0) { rr += 34; g2 += 34; bb += 34; }
-      if (j === s - 1 || i === s - 1) { rr *= 0.55; g2 *= 0.55; bb *= 0.55; }
-      const p = (row * FBW + x + i) * 4;
-      d[p] = rr; d[p + 1] = g2; d[p + 2] = bb;
+      const col = x + i;
+      if (col < 0 || col >= FBW) continue;
+      let r = fr, gg = fg, b = fb;
+      if (j === 0 || i === 0) { r += 26; gg += 26; b += 26; }
+      else if (j === s - 1 || i === s - 1) { r = r * 0.76 | 0; gg = gg * 0.76 | 0; b = b * 0.76 | 0; }
+      const p = (row * FBW + col) * 4;
+      d[p] = r; d[p + 1] = gg; d[p + 2] = b;
     }
   }
 }
@@ -85,37 +74,24 @@ function buildTitleGrids() {
   return grids;
 }
 
+/* background flat colors -> solid tint (minimalist, no gradient) */
+const BG = [
+  [gkey(0, 0, 85),   [22, 22, 46]],
+  [gkey(0, 0, 170),  [24, 40, 72]],
+  [gkey(85, 85, 255),[110, 110, 176]],
+];
+const BG_WORDS = BG.map(([k, rgb]) => [k, 0xff000000 | (rgb[2] << 16) | (rgb[1] << 8) | rgb[0]]);
+
 const GRIDS = buildGrids();
 const GRIDS_TITLE = buildTitleGrids();
 
-let bgWords = null;
 function polish(d, u32, state) {
-  if (!bgWords) {
-    bgWords = BG.map(([, a, b]) => {
-      const w = new Uint32Array(FBH);
-      for (let y = 0; y < FBH; y++) {
-        const t = y / FBH;
-        const r = (a[0] + (b[0] - a[0]) * t) | 0,
-              g = (a[1] + (b[1] - a[1]) * t) | 0,
-              bl = (a[2] + (b[2] - a[2]) * t) | 0;
-        w[y] = 0xff000000 | (bl << 16) | (g << 8) | r;
-      }
-      return w;
-    });
-    bgWords.k = BG.map(([k]) => k);
-  }
-  const k0 = bgWords.k[0], k1 = bgWords.k[1], k2 = bgWords.k[2];
-  const w0 = bgWords[0], w1 = bgWords[1], w2 = bgWords[2];
-  for (let y = 0; y < FBH; y++) {
-    const base = y * FBW;
-    const a0 = w0[y], a1 = w1[y], a2 = w2[y];
-    for (let i = 0; i < FBW; i++) {
-      const v = u32[base + i];
-      const flat = v & 0xffffff;
-      if (flat === k0) u32[base + i] = a0;
-      else if (flat === k1) u32[base + i] = a1;
-      else if (flat === k2) u32[base + i] = a2;
-    }
+  const b0 = BG_WORDS[0], b1 = BG_WORDS[1], b2 = BG_WORDS[2];
+  for (let i = 0; i < FBW * FBH; i++) {
+    const flat = u32[i] & 0xffffff;
+    if (flat === b0[0]) u32[i] = b0[1];
+    else if (flat === b1[0]) u32[i] = b1[1];
+    else if (flat === b2[0]) u32[i] = b2[1];
   }
   for (const [x, y, s] of (state === 0 ? GRIDS_TITLE : GRIDS)) {
     const k = cellKey(u32, x + (s >> 1), y + (s >> 1));
@@ -198,6 +174,7 @@ function stopSong() { clearInterval(songTimer); songTimer = null; }
   ex.init(Date.now() >>> 0);
 
   addEventListener("keydown", (e) => {
+    if (e.repeat) return;                 /* OS key-repeat must not re-trigger drops/DAS */
     if (!ac) { ac = new AudioContext(); if (songOn) startSong(); }
     if (e.code === "KeyM") { songOn = !songOn; songOn ? startSong() : stopSong(); return; }
     const m = KEY[e.code];
@@ -206,6 +183,22 @@ function stopSong() { clearInterval(songTimer); songTimer = null; }
   addEventListener("keyup", (e) => {
     const m = KEY[e.code];
     if (m) { e.preventDefault(); ex.key(m[1], 0); }
+  });
+
+  /* pointer/touch: hold = keydown..keyup, tap = down+up; engine owns auto-repeat */
+  const ensureAudio = () => { if (!ac) { ac = new AudioContext(); if (songOn) startSong(); } };
+  document.querySelectorAll("[data-key]").forEach((btn) => {
+    const code = +btn.getAttribute("data-key");
+    const tap = btn.hasAttribute("data-tap");
+    let held = false;
+    btn.addEventListener("pointerdown", (e) => {
+      e.preventDefault(); ensureAudio(); btn.setPointerCapture(e.pointerId);
+      held = true; ex.key(code, 1); if (tap) { ex.key(code, 0); held = false; }
+    });
+    const release = () => { if (held) { ex.key(code, 0); held = false; } };
+    btn.addEventListener("pointerup", release);
+    btn.addEventListener("pointercancel", release);
+    btn.addEventListener("lostpointercapture", release);
   });
 
   let last = performance.now();

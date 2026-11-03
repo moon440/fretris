@@ -6,55 +6,71 @@
 <title>FRETRIS — Free/Libre Tetris in C + WebAssembly (AGPL-3.0)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
+  :root { --edge: #2a2740; --ink: #d7d7ea; }
   html, body {
     margin: 0; min-height: 100%;
-    font-family: "Segoe UI", system-ui, sans-serif;
-    color: #cfd0e8;
-    background:
-      radial-gradient(1200px 700px at 50% -10%, #3a2a7a 0%, transparent 60%),
-      radial-gradient(900px 600px at 85% 110%, #173a5e 0%, transparent 55%),
-      #0a0818;
+    font-family: system-ui, "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: #0c0b14;
     display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 14px;
+    align-items: center; justify-content: center; gap: 16px;
+    -webkit-user-select: none; user-select: none;
   }
   h1 {
-    font-size: 20px; font-weight: 700; letter-spacing: 6px; margin: 0;
-    background: linear-gradient(90deg, #7dd3ff, #c084fc, #fbbf24);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
+    font-size: 18px; font-weight: 600; letter-spacing: 8px; margin: 0;
+    color: var(--ink); text-transform: uppercase;
   }
   canvas {
     image-rendering: pixelated;
-    width: min(92vw, 720px);
-    border-radius: 14px;
-    border: 1px solid rgba(160, 150, 255, 0.35);
-    box-shadow:
-      0 0 30px rgba(120, 80, 255, 0.25),
-      0 0 90px rgba(60, 160, 255, 0.12),
-      0 18px 50px rgba(0, 0, 0, 0.55);
+    width: min(94vw, 460px);
+    border: 1px solid var(--edge);
+    border-radius: 6px;
     background: #000;
   }
-  footer { font-size: 12px; text-align: center; line-height: 1.9; max-width: 640px; }
-  a { color: #8ecbff; text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  kbd {
-    border: 1px solid #4a4670; border-bottom-width: 2px; border-radius: 4px;
-    padding: 0 5px; background: #1d1a33; color: #e6e4ff; font-size: 11px;
+  .pad {
+    display: grid; gap: 8px;
+    grid-template-columns: repeat(4, 64px);
+    touch-action: none;
   }
+  .pad button {
+    height: 52px; font-size: 18px; line-height: 1;
+    color: var(--ink); background: #16141f;
+    border: 1px solid var(--edge); border-radius: 8px;
+    cursor: pointer; touch-action: none;
+  }
+  .pad button:active { background: #26233a; }
+  .pad .w2 { grid-column: span 2; }
+  footer {
+    font-size: 12px; text-align: center; line-height: 1.9; max-width: 480px;
+    color: #8b8aa3;
+  }
+  a { color: #7aa2ff; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  @media (hover: hover) and (pointer: fine) { .pad { display: none; } }
 </style>
 </head>
 <body>
-  <h1>FRETRIS</h1>
+  <h1>Fretris</h1>
   <canvas id="screen" width="480" height="400"></canvas>
+  <div class="pad" aria-label="controls">
+    <button data-key="0">&#9664;</button>
+    <button data-key="1">&#9654;</button>
+    <button data-key="2">&#9660;</button>
+    <button data-key="3" data-tap>&#8635;</button>
+    <button data-key="5" data-tap>HOLD</button>
+    <button data-key="6" data-tap class="w2">DROP</button>
+    <button data-key="8" data-tap class="w2">START</button>
+    <button data-key="7" data-tap>II</button>
+    <button data-key="9" data-tap>RST</button>
+  </div>
   <footer>
-    <kbd>&larr;</kbd><kbd>&rarr;</kbd> move &middot; <kbd>&uarr;</kbd>/<kbd>Z</kbd> rotate
-    &middot; <kbd>&darr;</kbd> soft &middot; <kbd>space</kbd> hard &middot;
-    <kbd>C</kbd> hold &middot; <kbd>P</kbd> pause &middot; <kbd>R</kbd> restart &middot; <kbd>M</kbd> music<br>
+    Keys: &larr; &rarr; move &middot; &uarr;/Z rotate &middot; &darr; soft &middot; space hard &middot;
+    C hold &middot; P pause &middot; R restart &middot; M music<br>
     Rules: Tetris Guideline (SRS, 7-bag) &middot; engine: freestanding C
     &rarr; WebAssembly<br>
-    Source: <a href="https://github.com/moon440/fretris">github.com/moon440/fretris</a>
-    &middot; Copyright (C) 2026 moon440 &middot; AGPL-3.0-only: share and modify freely, keep forks free &middot;
-    Tetris is a trademark of the Tetris Company; this is an independent fan project.
+    <a href="https://github.com/moon440/fretris">github.com/moon440/fretris</a>
+    &middot; AGPL-3.0-only &middot; independent fan project; Tetris is a trademark of the Tetris Company.
 </footer>
-  <script src="glue.js?v=3"></script>
+  <script src="glue.js?v=4"></script>
 </body>
 </html>
